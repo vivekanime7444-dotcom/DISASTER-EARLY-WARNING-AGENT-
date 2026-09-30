@@ -1,0 +1,2 @@
+[tool.vercel]
+entrypoint = "python-risk-engine.main:app"
