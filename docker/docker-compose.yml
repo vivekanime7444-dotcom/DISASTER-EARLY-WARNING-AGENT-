@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  python-risk-engine:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.python
+    container_name: disaster-risk-engine
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  java-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.java
+    container_name: disaster-java-agent
+    ports:
+      - "8080:8080"
+    depends_on:
+      python-risk-engine:
+        condition: service_healthy
+    environment:
+      - PYTHON_RISK_URL=http://python-risk-engine:8000/api/risk/evaluate
+      - WEATHER_PROVIDER=Open-Meteo
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "java", "-version"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

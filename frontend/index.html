@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Disaster Early-Warning & Weather Intelligence Agent</title>
+  <meta name="description" content="24/7 location-aware disaster early-warning and weather intelligence platform using AI Rational Agent, ADSA Sensor Graph, and Python Risk Classification.">
+  
+  <!-- Google Fonts: Outfit, Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Dashboard Custom Styles -->
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+  <!-- Main Top Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo" id="mainBrandLogo">🚨</div>
+      <div class="brand-text">
+        <h1>Disaster Early-Warning Agent</h1>
+        <span>AI Rational Agent • ADSA Sensor Graph • Dual Notification Radii</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" aria-label="Main Navigation">
+      <button class="tab-btn active" data-tab="tab-command" id="tabBtnCommand">Command Center</button>
+      <button class="tab-btn" data-tab="tab-notifications" id="tabBtnNotifications">📢 Notification Board</button>
+      <button class="tab-btn" data-tab="tab-user" id="tabBtnUser">User Dashboard</button>
+      <button class="tab-btn" data-tab="tab-graph" id="tabBtnGraph">ADSA Sensor Graph</button>
+      <button class="tab-btn" data-tab="tab-locations" id="tabBtnLocations">Location Registry</button>
+      <button class="tab-btn" data-tab="tab-audit" id="tabBtnAudit">Geofence Audit</button>
+    </nav>
+
+    <!-- Header Actions & Controls -->
+    <div class="header-status-strip">
+      <div class="live-badge" id="headerLiveBadge">
+        <span class="live-dot"></span>
+        <span id="systemHealthStatus">24/7 MONITORING</span>
+      </div>
+      <button class="icon-btn" id="soundToggleBtn" title="Toggle Emergency Siren Audio">🔊 Sound Active</button>
+      <button class="icon-btn" id="btnRequestNotifPermission" onclick="App.requestNotificationPermission()" title="Enable OS/Device Push Notifications">🔔 Device Alerts</button>
+      <button class="icon-btn" onclick="ExportManager.downloadReport('pdf')" title="Download Emergency Dossier">📥 Export PDF</button>
+
+      <!-- Direct User Alert Notification Bell -->
+      <div class="user-notification-bell" id="headerNotificationBell" onclick="App.handleNotificationBellClick()" title="Emergency alert notification sent directly to user. Click to open details.">
+        <span class="bell-icon">🔔</span>
+        <span class="bell-text" id="headerBellText">User Alerts</span>
+        <span class="bell-badge" id="headerBellBadge" style="display:none;">0</span>
+      </div>
+
+      <!-- User Authentication Session Status in Header -->
+      <div class="user-session-bar" id="headerUserSessionBar" style="display:none;">
+        <div class="user-chip">
+          <span class="user-avatar">👤</span>
+          <div class="user-meta">
+            <span class="user-email" id="headerUserEmail">citizen.kakinada@gmail.com</span>
+            <span class="user-badge" id="headerUserDistrictBadge">District: Kakinada</span>
+          </div>
+          <span class="session-live-pulse" title="Single Active Session Secured">● ACTIVE</span>
+        </div>
+        <button class="logout-btn" id="headerLogoutBtn" onclick="App.handleLogout()" title="Log out and reset session to start">
+          🚪 Log Out
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="dashboard-container">
+
+    <!-- Academic Disclaimer Banner -->
+    <aside class="disclaimer-banner" id="disclaimerBanner">
+      <div>
+        ⚠️ <b>ACADEMIC PROTOTYPE NOTICE:</b> Prototype risk classification thresholds (0–20 Normal, 21–40 Low, 41–60 Moderate, 61–80 High, 81–100 Critical) are research-level specifications and do not replace official emergency warnings from state authorities.
+      </div>
+      <div style="font-size:11px; opacity:0.8;">Python Engine: <span id="pythonStatus">Connecting...</span></div>
+    </aside>
+
+    <!-- Global Simulation Controls -->
+    <section class="sim-controls-panel" aria-label="Simulation Controls">
+      <span style="font-size:12px; font-weight:700; color:#94a3b8; text-transform:uppercase;">🧪 Scenario Simulator:</span>
+      <button class="sim-btn normal" data-scenario="NORMAL" id="simBtnNormal">Normal Baseline (20mm Rain)</button>
+      <button class="sim-btn warning" data-scenario="WARNING" id="simBtnWarning">Warning Stage (80mm + Rising Water)</button>
+      <button class="sim-btn critical" data-scenario="CRITICAL" id="simBtnCritical">🚨 Critical Hazard (145mm + 4.8m Water + Gale)</button>
+
+      <div style="margin-left:auto; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label for="userDistrictSelector" style="font-size:12px; font-weight:700; color:#38bdf8;">👤 MY DISTRICT (ALERT TARGET):</label>
+          <select id="userDistrictSelector" class="form-control" style="width:160px; font-weight:700; border-color:#38bdf8;">
+            <option value="Kakinada" selected>Kakinada</option>
+            <option value="Visakhapatnam">Visakhapatnam</option>
+            <option value="NTR">NTR (Vijayawada)</option>
+            <option value="Hyderabad">Hyderabad</option>
+            <option value="Guntur">Guntur</option>
+            <option value="East Godavari">East Godavari</option>
+          </select>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label for="locationSelector" style="font-size:12px; font-weight:600; color:#94a3b8;">MONITORED REGION:</label>
+          <select id="locationSelector" class="form-control" style="width:240px;"></select>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 1: DISASTER COMMAND CENTER -->
+    <section id="tab-command" class="tab-pane">
+
+      <!-- Metrics Row -->
+      <div class="metrics-row" style="margin-bottom:20px;">
+        <article class="metric-card critical">
+          <span class="metric-lbl">Composite Risk Score</span>
+          <span class="metric-val" id="metricRiskScore" style="color:#ef4444;">91/100</span>
+          <span class="metric-sub">Category: <b id="metricRiskLevel">CRITICAL</b></span>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-lbl">Analysis Confidence</span>
+          <span class="metric-val" id="metricConfidence" style="color:#38bdf8;">92%</span>
+          <span class="metric-sub">Graph Validation Confirmed</span>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-lbl">Telemetry Trend</span>
+          <span class="metric-val" id="metricTrend" style="color:#f59e0b;">Increasing</span>
+          <span class="metric-sub">Predicted Risk: <b id="metricPredicted">CRITICAL</b></span>
+        </article>
+
+        <article class="metric-card healthy">
+          <span class="metric-lbl">IoT Sensor Network</span>
+          <span class="metric-val" style="color:#10b981;"><span id="metricActiveSensors">14</span> Active</span>
+          <span class="metric-sub"><span id="metricOfflineSensors">0</span> Degraded / Offline</span>
+        </article>
+
+        <article class="metric-card">
+          <span class="metric-lbl">Intelligence Source</span>
+          <span class="metric-val" id="metricSource" style="font-size:18px; color:#a855f7;">PYTHON_AI</span>
+          <span class="metric-sub">Auto Java Rule Failover</span>
+        </article>
+      </div>
+
+      <!-- Main Map and Alerts Split -->
+      <div class="main-workspace-grid">
+        
+        <!-- Left: Interactive Map -->
+        <div class="glass-card">
+          <div class="card-header">
+            <span class="card-title">📍 Location-Aware Geospatial Command Map</span>
+            <div class="radii-pill-container">
+              <span class="radius-badge disaster">100 KM DISASTER RADIUS</span>
+              <span class="radius-badge weather">150 KM WEATHER RADIUS</span>
+            </div>
+          </div>
+
+          <!-- Interactive Mapping Controls Bar -->
+          <div class="map-controls-toolbar" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap; background:rgba(15,23,42,0.6); padding:8px 12px; border-radius:var(--radius-md); border:1px solid var(--card-border);">
+            <span style="font-size:11px; font-weight:700; color:#38bdf8; text-transform:uppercase;">🗺️ Mapping Controls:</span>
+            
+            <button class="btn-action" id="btnModeSetWarning" onclick="MapManager.setClickMode('SET_WARNING')" style="font-size:10px; padding:4px 8px;">
+              🎯 Set Warning On Click
+            </button>
+            <button class="btn-action" id="btnModeSetUser" onclick="MapManager.setClickMode('SET_USER')" style="font-size:10px; padding:4px 8px;">
+              📍 Set My Location On Click
+            </button>
+            <button class="btn-action" onclick="App.recenterOnActiveWarning()" style="font-size:10px; padding:4px 8px;">
+              🛰️ Recenter Warning
+            </button>
+
+            <!-- Google Maps & 3D Globe Type Base Layer Switcher -->
+            <div style="display:flex; align-items:center; gap:4px; margin-left:8px; border-left:1px solid #334155; padding-left:8px; flex-wrap:wrap;">
+              <span style="font-size:10px; font-weight:700; color:#cbd5e1;">MAP VIEW:</span>
+              <button class="btn-action primary" id="btnMapGoogleHybrid" onclick="MapManager.setMapType('GOOGLE_HYBRID')" style="font-size:10px; padding:4px 8px;" title="Google Maps Hybrid: Satellite + Country, State, District, City Labels">
+                🛰️ Google Hybrid
+              </button>
+              <button class="btn-action" id="btnMapGoogleRoad" onclick="MapManager.setMapType('GOOGLE_ROAD')" style="font-size:10px; padding:4px 8px;" title="Google Maps Standard Road with full District Boundaries">
+                🗺️ Google Maps
+              </button>
+              <button class="btn-action" id="btnMapGlobe" onclick="MapManager.setMapType('GLOBE')" style="font-size:10px; padding:4px 8px; background:linear-gradient(135deg, rgba(56,189,248,0.25), rgba(2,132,199,0.35)); border-color:#38bdf8;" title="3D Photorealistic Interactive Earth Globe">
+                🌐 3D Earth Globe
+              </button>
+              <button class="btn-action" id="btnMapSatellite" onclick="MapManager.setMapType('SATELLITE')" style="font-size:10px; padding:4px 8px;" title="Real-World Esri Satellite Imagery">
+                🌍 Satellite
+              </button>
+              <button class="btn-action" id="btnMapDark" onclick="MapManager.setMapType('DARK')" style="font-size:10px; padding:4px 8px;" title="Tactical Command Center Dark Map">
+                🌙 Dark
+              </button>
+            </div>
+
+            <!-- Quick Warning Locations -->
+            <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+              <span style="font-size:11px; color:#94a3b8;">Quick Jump:</span>
+              <button class="btn-action" onclick="App.focusWarningLocation('LOC-KAKINADA', 16.9891, 82.2475, 'Kakinada', 'CRITICAL')" style="font-size:10px; padding:3px 6px;">Kakinada</button>
+              <button class="btn-action" onclick="App.focusWarningLocation('LOC-VIZAG', 17.6868, 83.2185, 'Visakhapatnam', 'WARNING')" style="font-size:10px; padding:3px 6px;">Vizag</button>
+              <button class="btn-action" onclick="App.focusWarningLocation('LOC-VIJAYAWADA', 16.5062, 80.6480, 'Vijayawada', 'WARNING')" style="font-size:10px; padding:3px 6px;">Vijayawada</button>
+              <button class="btn-action" onclick="App.focusWarningLocation('LOC-HYDERABAD', 17.3850, 78.4867, 'Hyderabad', 'NORMAL')" style="font-size:10px; padding:3px 6px;">Hyderabad</button>
+            </div>
+          </div>
+
+          <div class="map-wrapper">
+            <div id="disasterMap"></div>
+            <div id="globeContainer" style="display:none;">
+              <div class="globe-overlay-hint">
+                🌐 <b>3D Interactive Earth Globe:</b> Drag to rotate 360° • Scroll to zoom • Active Epicenter & Dual Radii Mapped
+              </div>
+            </div>
+            <div class="map-state-indicator">
+              <span id="mapStateText"><span style="color:#ef4444; font-weight:bold;">CRITICAL HAZARD MAPPING ACTIVE:</span> Kakinada Epicenter (16.99, 82.25)</span>
+              <span id="mapClickModeStatus" style="margin-left:12px; font-size:11px; color:#ef4444; font-weight:600;">🎯 Click map to set Warning Epicenter</span>
+            </div>
+          </div>
+
+          <!-- Weather Intelligence Widget Strip below map -->
+          <div class="weather-telemetry-strip" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-top:16px;">
+            <div class="metric-card" style="padding:12px 14px;">
+              <span class="metric-lbl">🌡️ Temperature</span>
+              <b id="weatherTemp" style="font-family:var(--font-mono); font-size:18px; color:#38bdf8;">26.0°C</b>
+            </div>
+            <div class="metric-card" style="padding:12px 14px;">
+              <span class="metric-lbl">🌧️ Rainfall 24h</span>
+              <b id="weatherRain" style="font-family:var(--font-mono); font-size:18px; color:#ef4444;">145.0 mm</b>
+            </div>
+            <div class="metric-card" style="padding:12px 14px;">
+              <span class="metric-lbl">💨 Surface Wind</span>
+              <b id="weatherWind" style="font-family:var(--font-mono); font-size:18px; color:#f59e0b;">62.0 km/h</b>
+            </div>
+            <div class="metric-card" style="padding:12px 14px;">
+              <span class="metric-lbl">💧 Humidity</span>
+              <b id="weatherHumidity" style="font-family:var(--font-mono); font-size:18px; color:#00f0ff;">94%</b>
+            </div>
+            <div class="metric-card" style="padding:12px 14px;">
+              <span class="metric-lbl">🧭 Pressure</span>
+              <b id="weatherPressure" style="font-family:var(--font-mono); font-size:18px; color:#a855f7;">988 hPa</b>
+            </div>
+            <div class="metric-card" style="padding:12px 14px;">
+              <span class="metric-lbl">🛰️ Forecast</span>
+              <b id="weatherForecast" style="font-size:12px; color:#e2e8f0; font-weight:700;">Heavy Rain Influx</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Active Alerts & Reasoning -->
+        <div class="glass-card">
+          <div class="card-header">
+            <span class="card-title">🚨 Active Hazard Stream</span>
+            <span style="font-size:12px; color:#ef4444; font-weight:700;">1 Active Warning</span>
+          </div>
+
+          <div class="alerts-list" id="alertsContainer">
+            <!-- Dynamic alerts injected here -->
+          </div>
+
+          <div style="margin-top:16px; border-top:1px solid var(--card-border); padding-top:14px;">
+            <h4 style="font-size:12px; color:var(--text-muted); text-transform:uppercase; margin-bottom:8px;">AI Rational Agent Reasoning:</h4>
+            <ul id="contributingFactorsList" style="font-size:12px; color:#cbd5e1; list-style:none; display:flex; flex-direction:column; gap:4px;">
+              <li>• Heavy rainfall (145 mm) exceeding critical threshold</li>
+              <li>• Rapid water-level increase (4.8 m)</li>
+              <li>• Neighboring sensor confirmation verified across 3 stations</li>
+            </ul>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Real-time Charts Section -->
+      <div class="charts-grid" style="margin-top:20px;">
+        <div class="glass-card">
+          <div class="card-header">
+            <span class="card-title">📈 Real-time Precipitation Gauge (mm)</span>
+            <span style="font-size:11px; color:#38bdf8;">Telemetry Frequency: 5s</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="rainfallChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <span class="card-title">🌊 Hydrological Spillway Water Level (m)</span>
+            <span style="font-size:11px; color:#a855f7;">Danger Mark: 4.5m</span>
+          </div>
+          <div class="chart-box">
+            <canvas id="waterLevelChartCanvas"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- TAB 2: USER DASHBOARD -->
+    <section id="tab-user" class="tab-pane" style="display:none;">
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">👤 Citizen & Responder Emergency Dashboard</span>
+          <span class="radius-badge disaster">Exact Dual Radii Evaluator</span>
+        </div>
+
+        <!-- Dynamic Geofence Banner -->
+        <div class="user-geofence-banner disaster-zone" id="userGeofenceBanner">
+          <h2 id="userBannerTitle" style="color:#ef4444; margin-bottom:6px;">🚨 CRITICAL DISASTER ALERT (15.0 km to Epicenter)</h2>
+          <p id="userBannerDesc" style="color:#f8fafc; font-size:14px; margin-bottom:14px;">
+            You are within the <b>100 km disaster-alert area</b>. Severe flash flood danger detected from 145mm precipitation and 4.8m sluice river level.
+          </p>
+          <div class="alert-actions" id="userBannerActions">
+            <button class="btn-action primary" onclick="App.showAlertModal()">[VIEW ALERT]</button>
+            <button class="btn-action" onclick="App.sendTestUserNotification('CRITICAL')" title="Dispatch emergency notification directly to your device/browser" style="background:rgba(239,68,68,0.2); border-color:#ef4444; color:#fca5a5; font-weight:700;">📲 DISPATCH NOTIFICATION TO USER</button>
+            <button class="btn-action" onclick="ExportManager.downloadReport('pdf')">[DOWNLOAD ALERT]</button>
+            <button class="btn-action" onclick="App.acknowledgeAlert()">[ACKNOWLEDGE SAFE]</button>
+          </div>
+        </div>
+
+        <!-- District Protection & Match Status Card -->
+        <div style="background:rgba(15, 23, 42, 0.7); padding:16px; border-radius:var(--radius-md); border:1px solid #334155; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <span style="font-size:11px; text-transform:uppercase; color:#94a3b8; font-weight:700;">🛡️ District Alert Restriction Status:</span>
+            <div style="font-size:14px; color:#f8fafc; margin-top:4px;">
+              Your Registered District: <b id="userDistrictBadge" style="color:#38bdf8;">Kakinada</b>
+              &nbsp;|&nbsp; Active Hazard District: <b id="hazardDistrictBadge" style="color:#ef4444;">Kakinada</b>
+            </div>
+            <div style="font-size:12px; color:#cbd5e1; margin-top:4px;" id="districtStatusExplanation">
+              ✅ <b>District Match:</b> Emergency alerts and audio sirens are eligible for dispatch because hazard is localized to your district.
+            </div>
+          </div>
+          <div id="districtFilterPill">
+            <span class="radius-badge disaster" style="font-size:11px; padding:6px 12px;">🛡️ DISTRICT MATCH: ACTIVE</span>
+          </div>
+        </div>
+
+        <!-- Interactive Geofence Distance Simulator Slider -->
+        <div style="background:rgba(15, 23, 42, 0.6); padding:20px; border-radius:var(--radius-md); border:1px solid var(--card-border); margin-bottom:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label for="userDistanceSlider" style="font-weight:700; font-size:13px; color:var(--text-main);">
+              Simulate Your Distance to Disaster Epicenter:
+            </label>
+            <span id="userDistanceVal" style="font-size:18px; font-weight:800; color:var(--accent-cyan);">15.0 km</span>
+          </div>
+          <input type="range" id="userDistanceSlider" min="0" max="200" step="0.1" value="15.0" style="width:100%; accent-color:var(--accent-cyan); cursor:pointer;">
+          
+          <div style="display:flex; justify-content:space-between; font-size:11px; color:#64748b; margin-top:6px;">
+            <span>0 km (Epicenter)</span>
+            <span style="color:#ef4444; font-weight:bold;">100 km (Disaster Boundary)</span>
+            <span style="color:#0284c7; font-weight:bold;">150 km (Weather Boundary)</span>
+            <span style="color:#10b981; font-weight:bold;">200 km (Safe Zone)</span>
+          </div>
+        </div>
+
+        <!-- Dual Radii Rules Reference -->
+        <div class="glass-card" style="background:rgba(15, 23, 42, 0.4);">
+          <h4 style="margin-bottom:12px; color:var(--text-main);">Notification & District Filtering Rules:</h4>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Condition / Zone</th>
+                <th>Alert Dispatched</th>
+                <th>Audible Siren</th>
+                <th>Explanation Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b style="color:#f59e0b;">Different District</b></td>
+                <td><span class="radius-badge" style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid #f59e0b;">SUPPRESSED (District Mismatch)</span></td>
+                <td>Silent</td>
+                <td><b>Rule: Only alert sent in user alert district.</b> Users in other districts do not receive false alarm sirens.</td>
+              </tr>
+              <tr>
+                <td><b style="color:#ef4444;">Same District: 0 – 100.0 km</b></td>
+                <td>Disaster Alert + Weather Alert</td>
+                <td>High-Pitch Klaxon Alarm</td>
+                <td>Inside 100km radius: Critical disaster emergency action required.</td>
+              </tr>
+              <tr>
+                <td><b style="color:#0284c7;">Same District: 100.01 – 150.0 km</b></td>
+                <td>Weather Alert ONLY</td>
+                <td>Soft Advisory Chime</td>
+                <td>Within 150km weather area: Disaster warning suppressed to avoid panic.</td>
+              </tr>
+              <tr>
+                <td><b style="color:#10b981;">Any District: &gt; 150.0 km</b></td>
+                <td>No Location Alert</td>
+                <td>Silent</td>
+                <td>Beyond alert boundaries. User is in safe sector.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: ADSA SENSOR GRAPH -->
+    <section id="tab-graph" class="tab-pane" style="display:none;">
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">🕸️ ADSA Sensor Network Graph & Spatial Anomaly Engine</span>
+          <div>
+            Connected Components: <b id="graphClusterCount" style="color:#38bdf8;">1</b>
+          </div>
+        </div>
+
+        <p style="font-size:13px; color:#94a3b8; margin-bottom:12px;">
+          Sensor relationships represented as weighted edges based on hydrological corridors and meteorological proximity.
+          The graph confirms whether an abnormal reading is an <b>isolated hardware glitch</b> or a <b>cluster disaster event</b>.
+        </p>
+
+        <!-- Canvas Container -->
+        <div class="graph-canvas-container">
+          <canvas id="adsaGraphCanvas"></canvas>
+        </div>
+
+        <!-- Traversal Controls -->
+        <div class="graph-controls">
+          <button class="icon-btn" onclick="graphVis.runBfsAnimation()">▶ Run ADSA BFS Traversal</button>
+          <button class="icon-btn" onclick="graphVis.runDfsAnimation()">▶ Run ADSA DFS Traversal</button>
+          <button class="icon-btn" onclick="App.triggerSimulation('CRITICAL')">Simulate Cluster Spike</button>
+          <span id="graphStatusText" style="font-size:12px; color:#cbd5e1; margin-left:auto;">Ready for graph algorithm execution.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: DYNAMIC LOCATION REGISTRY -->
+    <section id="tab-locations" class="tab-pane" style="display:none;">
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">🌐 Dynamic Location Registry</span>
+          <span class="live-badge">Zero Hard-coding</span>
+        </div>
+
+        <p style="font-size:13px; color:#94a3b8;">
+          Configure any latitude, longitude, city, district, or zone globally. The 24/7 AI Rational Agent will automatically instantiate a monitoring thread, ingest local weather, and connect nearby sensors.
+        </p>
+
+        <form id="newLocationForm" style="margin-top:16px;">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="locCity">City / Settlement Name</label>
+              <input type="text" id="locCity" class="form-control" placeholder="e.g. Mumbai, Chennai, Tokyo" required>
+            </div>
+            <div class="form-group">
+              <label for="locDistrict">District / County</label>
+              <input type="text" id="locDistrict" class="form-control" placeholder="e.g. Greater Mumbai" required>
+            </div>
+            <div class="form-group">
+              <label for="locState">State / Province</label>
+              <input type="text" id="locState" class="form-control" placeholder="e.g. Maharashtra" required>
+            </div>
+            <div class="form-group">
+              <label for="locLat">Latitude (Decimal)</label>
+              <input type="number" step="0.0001" id="locLat" class="form-control" placeholder="e.g. 19.0760" required>
+            </div>
+            <div class="form-group">
+              <label for="locLon">Longitude (Decimal)</label>
+              <input type="number" step="0.0001" id="locLon" class="form-control" placeholder="e.g. 72.8777" required>
+            </div>
+          </div>
+          <button type="submit" class="icon-btn" style="background:#0284c7; color:#fff; margin-top:16px; padding:10px 20px;">
+            ➕ Register Location in 24/7 Agent
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- TAB 5: GEOFENCE AUDIT & BOUNDARY LOG -->
+    <section id="tab-audit" class="tab-pane" style="display:none;">
+      <div class="glass-card">
+        <div class="card-header">
+          <span class="card-title">📋 Geographic Notification Delivery & Boundary Audit</span>
+          <button class="icon-btn" onclick="ExportManager.downloadReport('csv')">Download CSV Audit</button>
+        </div>
+
+        <p style="font-size:13px; color:#94a3b8;">
+          System records exact distance and qualifying radius for every notification to explain why an alert was or was not dispatched.
+        </p>
+
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Subscriber ID</th>
+                <th>Distance to Epicenter</th>
+                <th>Radius Boundary</th>
+                <th>Assigned Alert Type</th>
+                <th>Delivery Status</th>
+                <th>Algorithmic Explanation Reason</th>
+              </tr>
+            </thead>
+            <tbody id="notifTableBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 6: DEDICATED REAL-TIME NOTIFICATION BOARD -->
+    <section id="tab-notifications" class="tab-pane" style="display:none;">
+      <div class="glass-card notification-board-panel">
+        <div class="card-header">
+          <span class="card-title">📢 Real-Time Emergency Notification Board</span>
+          <div style="display:flex; gap:8px;">
+            <button class="icon-btn" onclick="App.refreshAllData()">🔄 Refresh Feed</button>
+            <button class="icon-btn" onclick="ExportManager.downloadReport('pdf')">📥 Export Dossier</button>
+          </div>
+        </div>
+
+        <!-- Notification Board KPI Strip -->
+        <div class="nb-stats-strip">
+          <div class="nb-stat-card dispatched">
+            <span class="nb-stat-lbl">Dispatched Alerts (In My District)</span>
+            <span class="nb-stat-val" id="nbTotalDispatched" style="color:#10b981;">1</span>
+            <span class="nb-stat-sub">Siren Active & Dispatched</span>
+          </div>
+
+          <div class="nb-stat-card">
+            <span class="nb-stat-lbl">My Registered Alert District</span>
+            <span class="nb-stat-val" id="nbUserDistrict" style="color:#38bdf8;">Kakinada</span>
+            <span class="nb-stat-sub">Target District Filter Applied</span>
+          </div>
+
+          <div class="nb-stat-card suppressed">
+            <span class="nb-stat-lbl">Suppressed Alerts (Other Districts)</span>
+            <span class="nb-stat-val" id="nbTotalSuppressed" style="color:#f59e0b;">0</span>
+            <span class="nb-stat-sub">Muted to Prevent Panic</span>
+          </div>
+
+          <div class="nb-stat-card critical">
+            <span class="nb-stat-lbl">Emergency Audio Siren</span>
+            <span class="nb-stat-val" id="nbSirenStatus" style="color:#ef4444;">ACTIVE</span>
+            <span class="nb-stat-sub">Dual-Tone Warning System</span>
+          </div>
+        </div>
+
+        <!-- Filter Toolbar -->
+        <div class="nb-filter-bar">
+          <span style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase;">Filter Board:</span>
+          <button class="nb-filter-btn active" id="nbFilterAll" onclick="App.filterNotificationBoard('ALL')">🔘 All Notifications</button>
+          <button class="nb-filter-btn" id="nbFilterDispatched" onclick="App.filterNotificationBoard('DISPATCHED')">🛡️ Dispatched To My District</button>
+          <button class="nb-filter-btn" id="nbFilterCritical" onclick="App.filterNotificationBoard('CRITICAL')">🚨 Critical Hazards Only</button>
+          <button class="nb-filter-btn" id="nbFilterSuppressed" onclick="App.filterNotificationBoard('SUPPRESSED')">⚠️ Suppressed (Muted)</button>
+          <input type="text" id="nbSearchInput" class="nb-search-input" placeholder="🔍 Search district, hazard, station..." oninput="App.searchNotificationBoard(this.value)" />
+        </div>
+
+        <!-- Notification Feed Table -->
+        <div class="nb-table-container">
+          <table class="nb-table">
+            <thead>
+              <tr>
+                <th>Time & ID</th>
+                <th>Hazard & Severity</th>
+                <th>Location & District</th>
+                <th>Geofence Radii</th>
+                <th>District Filter Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="notificationBoardTableBody">
+              <!-- Dynamically rendered -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+
+  <!-- AUTHENTICATION PORTAL (Gmail & Password Login) -->
+  <div class="auth-overlay active" id="authPortalModal" role="dialog" aria-modal="true" aria-labelledby="authPortalTitle">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-badge-icon">🚨</div>
+        <h2 id="authPortalTitle">Disaster Early-Warning Agent</h2>
+        <p class="auth-subtitle">AI Rational Agent • 24/7 Weather & Disaster Intelligence Command Portal</p>
+      </div>
+
+      <!-- Feedback / Alert Banner -->
+      <div class="auth-alert" id="authAlertBox" style="display:none;"></div>
+
+      <!-- Login Form -->
+      <form id="authLoginForm" onsubmit="event.preventDefault(); App.handleLoginSubmit();" autocomplete="on">
+        <!-- Gmail Input -->
+        <div class="auth-field-group">
+          <label for="authEmailInput">
+            <span>📧 Gmail Address:</span>
+            <span class="required-star">*</span>
+          </label>
+          <div class="input-with-icon">
+            <span class="field-icon">✉️</span>
+            <input 
+              type="email" 
+              id="authEmailInput" 
+              name="email"
+              placeholder="e.g. user@gmail.com" 
+              required
+              autocomplete="email"
+            />
+          </div>
+          <small class="field-hint">Enter your authorized Gmail address</small>
+        </div>
+
+        <!-- Password Input -->
+        <div class="auth-field-group">
+          <label for="authPasswordInput">
+            <span>🔒 Password:</span>
+            <span class="required-star">*</span>
+          </label>
+          <div class="input-with-icon">
+            <span class="field-icon">🔑</span>
+            <input 
+              type="password" 
+              id="authPasswordInput" 
+              name="password"
+              placeholder="••••••••••••" 
+              required
+              autocomplete="current-password"
+            />
+            <button type="button" class="btn-toggle-pwd" id="authTogglePwdBtn" onclick="App.togglePasswordVisibility()" title="Show/Hide Password">👁️</button>
+          </div>
+          <small class="field-hint">Minimum 4 characters</small>
+        </div>
+
+        <!-- Registered Alert District -->
+        <div class="auth-field-group">
+          <label for="authDistrictSelect">
+            <span>📍 Registered Alert District:</span>
+            <span class="district-badge-tag">TARGET</span>
+          </label>
+          <div class="input-with-icon">
+            <span class="field-icon">🏛️</span>
+            <select id="authDistrictSelect" name="district" class="auth-select">
+              <option value="Kakinada" selected>Kakinada District</option>
+              <option value="Visakhapatnam">Visakhapatnam District</option>
+              <option value="NTR">NTR District (Vijayawada)</option>
+              <option value="Hyderabad">Hyderabad District</option>
+              <option value="Guntur">Guntur District</option>
+              <option value="East Godavari">East Godavari District</option>
+            </select>
+          </div>
+          <small class="field-hint">🚨 Emergency audio sirens & alerts are filtered strictly for this district</small>
+        </div>
+
+        <!-- Quick-Fill Demo Profiles -->
+        <div class="quick-credentials-panel">
+          <span class="quick-creds-title">⚡ Quick-Fill Demo Profiles:</span>
+          <div class="quick-chips">
+            <button type="button" class="quick-chip" onclick="App.fillDemoCredentials('citizen.kakinada@gmail.com', 'citizenPass123', 'Kakinada')">
+              👤 Citizen (Kakinada)
+            </button>
+            <button type="button" class="quick-chip" onclick="App.fillDemoCredentials('officer.vizag@gmail.com', 'officerPass123', 'Visakhapatnam')">
+              🛡️ Officer (Vizag)
+            </button>
+            <button type="button" class="quick-chip" onclick="App.fillDemoCredentials('ndrf.hyderabad@gmail.com', 'ndrfPass123', 'Hyderabad')">
+              🚨 NDRF (Hyderabad)
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="auth-submit-btn" id="authSubmitBtn">
+          <span>🔐 LOG IN TO COMMAND CENTER</span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        <span>Disaster Early-Warning & Weather Intelligence Agent</span>
+        <span>• Multi-User Command Center Portal •</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Critical Disaster Alert Modal (Opened ONLY when User Taps Notification) -->
+  <div class="alert-modal-backdrop" id="criticalAlertModal" role="dialog" aria-modal="true" aria-labelledby="modalAlertTitle" style="display:none;">
+    <div class="alert-modal-card">
+      <div class="alert-modal-header">
+        <div class="alert-header-badge">🚨 EMERGENCY NOTIFICATION</div>
+        <button class="alert-modal-close" onclick="App.closeAlertModal()" aria-label="Close Alert">✕</button>
+      </div>
+
+      <div class="alert-modal-body">
+        <div class="alert-modal-icon-pulse">🚨</div>
+        <h2 class="alert-modal-headline" id="modalAlertTitle">CRITICAL DISASTER ALERT</h2>
+        <div class="alert-modal-subtitle" id="modalAlertSubtitle">Heavy Rainfall Detected</div>
+
+        <div class="alert-card-dossier">
+          <div class="dossier-row">
+            <span class="dossier-label">📍 Affected Area:</span>
+            <span class="dossier-value" id="modalAffectedArea">Detected Zone (Kakinada District)</span>
+          </div>
+          <div class="dossier-grid">
+            <div class="dossier-item">
+              <span class="dossier-icon">🌧</span>
+              <span class="dossier-key">Rainfall:</span>
+              <span class="dossier-val" id="modalRainfall">145 mm</span>
+            </div>
+            <div class="dossier-item">
+              <span class="dossier-icon">💧</span>
+              <span class="dossier-key">Water Level:</span>
+              <span class="dossier-val" id="modalWaterLevel">4.8 m</span>
+            </div>
+            <div class="dossier-item">
+              <span class="dossier-icon">💨</span>
+              <span class="dossier-key">Wind:</span>
+              <span class="dossier-val" id="modalWind">62 km/h</span>
+            </div>
+            <div class="dossier-item">
+              <span class="dossier-icon">⚠️</span>
+              <span class="dossier-key">Risk:</span>
+              <span class="dossier-val critical" id="modalRisk">CRITICAL</span>
+            </div>
+            <div class="dossier-item full-width">
+              <span class="dossier-icon">📊</span>
+              <span class="dossier-key">Score:</span>
+              <span class="dossier-val score" id="modalScore">91/100</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="alert-distance-banner" id="modalDistanceBanner">
+          ⚠️ You are within the <b>100 km</b> disaster-alert area.
+        </div>
+
+        <div class="alert-flow-diagram">
+          <div class="flow-step done">🔔 Notification</div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step current">User Taps</div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step">Alert Details</div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step">Map + Weather</div>
+          <div class="flow-arrow">➔</div>
+          <div class="flow-step">Download</div>
+        </div>
+      </div>
+
+      <div class="alert-modal-actions">
+        <button class="btn-modal primary" onclick="App.viewAlertOnMap()" id="btnModalViewAlert">
+          🗺️ View Alert on Map
+        </button>
+        <button class="btn-modal download" onclick="ExportManager.downloadReport('pdf')" id="btnModalDownload">
+          📥 Download PDF Report
+        </button>
+        <button class="btn-modal safe" onclick="App.acknowledgeAlert()" id="btnModalAcknowledge">
+          ✅ Acknowledge Safe
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/globe-vis.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/graph-vis.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

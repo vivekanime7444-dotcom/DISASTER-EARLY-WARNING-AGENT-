@@ -1,0 +1,14 @@
+# Dockerfile for Python Risk Engine Microservice
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY python-risk-engine/requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY python-risk-engine/ /app/
+COPY frontend/ /frontend/
+
+EXPOSE 8000
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "main.py"]
