@@ -4,8 +4,6 @@ echo ====================================================================
 echo   STARTING 24/7 DISASTER EARLY-WARNING & WEATHER INTELLIGENCE AGENT
 echo ====================================================================
 
-set JAVA_HOME=C:\Users\shanm\jdk-17
-set PATH=C:\Users\shanm\jdk-17\bin;C:\Users\shanm\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts;%PATH%
 
 echo [1/3] Initializing Database...
 python database\db_manager.py
